@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fraud Detection System (Local Demo)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Faker/3.1.0/faker.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+            color: #F9FAFB;
+            transition: background 0.5s ease-in-out;
+        }
+        body.auth-background {
+            background-image: linear-gradient(rgba(17, 24, 39, 0.8), rgba(17, 24, 39, 0.9)), url('https://images.unsplash.com/photo-1531297484001-80022131f5a1?q=80&w=2020&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeInSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .animated-card {
+            animation: fadeInSlideUp 0.7s ease-out forwards;
+        }
+        #auth-view .animated-card {
+            animation: fadeInSlideUp 0.7s ease-out forwards;
+        }
+        .card {
+            background-color: #1F2937;
+            border: 1px solid #374151;
+            transition: all 0.3s ease;
+        }
+        body.auth-background #auth-view .animated-card {
+            background-color: rgba(31, 41, 55, 0.55);
+            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .form-input, .form-input:disabled {
+            background-color: #374151;
+            border-color: #4B5563;
+            color: #F9FAFB;
+            transition: all 0.3s ease;
+        }
+        .form-input:focus {
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4);
+            border-color: #3B82F6;
+        }
+        .form-input:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .btn-primary, .btn-danger, .btn-success, .btn-secondary {
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover, .btn-danger:hover, .btn-success:hover, .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .btn-primary { background-color: #3B82F6; }
+        .btn-danger { background-color: #EF4444; }
+        .btn-success { background-color: #10B981; }
+        .btn-secondary { background-color: #6B7280; }
+        .table-header { background-color: #374151; }
+        .status-pending { color: #F59E0B; }
+        .status-approved { color: #10B981; }
+        .status-flagged { color: #EF4444; }
+        
+        .stat-card {
+            background-color: #1e293b; 
+            border: 1px solid #334155;
+            transition: all 0.3s ease;
+            transform: translateY(0);
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .hidden { display: none !important; }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(17, 24, 39, 0.8);
+            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            animation: fadeIn 0.3s ease-out;
+            padding: 1rem;
+        }
+        .sidebar-nav-btn {
+            display: block; width: 100%; padding: 0.75rem 1rem;
+            border-radius: 0.5rem; text-align: left;
+            font-weight: 500; color: #D1D5DB;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+        .sidebar-nav-btn:hover { background-color: #374151; }
+        .sidebar-nav-btn.active { background-color: #3B82F6; color: #FFFFFF; }
+    </style>
+</head>
+<body class="antialiased flex flex-col min-h-screen">
+
+    <div id="app" class="container mx-auto p-4 sm:p-6 lg:p-8 flex-grow">
+        <header class="mb-8 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <span class="text-blue-500 w-10 h-10 flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"></path></svg>
+                </span>
+                <div>
+                    <h1 class="text-3xl font-bold text-white">Fraud Detection System</h1>
+                    <p id="user-info" class="text-gray-400"></p>
+                </div>
+            </div>
+            <div id="user-actions" class="hidden flex items-center space-x-4">
+                 <button id="about-btn" class="btn-secondary text-white font-bold py-2 px-4 rounded-lg">
+                    About
+                </button>
+                <button id="logout-btn" class="btn-danger text-white font-bold py-2 px-4 rounded-lg">
+                    Logout
+                </button>
+            </div>
+        </header>
+
+        <main>
+            <div id="auth-view"></div>
+            <div id="admin-dashboard-view" class="hidden"></div>
+            
+            <div id="user-dashboard-container" class="hidden md:flex md:space-x-8">
+                <aside id="dashboard-sidebar" class="md:w-1/4 lg:w-1/5"></aside>
+                <div id="dashboard-main-content" class="md:w-3/4 lg:w-4/5"></div>
+            </div>
+
+            <div id="profile-view" class="hidden"></div>
+            <div id="about-view" class="hidden"></div> 
+        </main>
+    </div>
+
+    <footer id="main-footer" class="text-center p-6 mt-auto text-gray-500 border-t border-gray-800 hidden">
+        <div class="flex flex-col md:flex-row justify-between items-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <p>&copy; 2025 Fraud Detection System. All Rights Reserved.</p>
+            <div class="mt-4 md:mt-0">
+                <a href="#" class="mx-2 hover:text-white">Contact Us</a> |
+                <a href="#" class="mx-2 hover:text-white">Privacy Policy</a> |
+                <a href="#" class="mx-2 hover:text-white">Terms of Service</a>
+            </div>
+        </div>
+    </footer>
+
+
+    <script>
+        // Store HTML templates in variables for reusability
+        const authViewHTML = `
+            <div class="flex flex-col md:flex-row items-center justify-center min-h-[70vh] gap-8 md:gap-16 px-4">
+                <div class="w-full max-w-md animated-card rounded-xl shadow-lg p-8">
+                    <div class="flex justify-center mb-6">
+                        <button id="login-tab-btn" class="px-6 py-2 text-lg font-semibold border-b-2 border-blue-500 text-white">Login</button>
+                        <button id="register-tab-btn" class="px-6 py-2 text-lg font-semibold border-b-2 border-transparent text-gray-400">Register</button>
+                    </div>
+                    <form id="login-form">
+                        <div class="mb-4"><label for="login-email" class="block mb-2 text-sm font-medium text-gray-300">Email</label><input type="email" id="login-email" class="w-full p-3 rounded-lg form-input" required value="alice@example.com"></div>
+                        <div class="mb-6"><label for="login-password" class="block mb-2 text-sm font-medium text-gray-300">Password</label><input type="password" id="login-password" class="w-full p-3 rounded-lg form-input" required value="password123"></div>
+                        <div class="mb-4"><label for="login-role" class="block mb-2 text-sm font-medium text-gray-300">Role</label><select id="login-role" class="w-full p-3 rounded-lg form-input"><option value="user" selected>User</option><option value="admin">Admin</option></select></div>
+                        <button type="submit" class="w-full btn-primary text-white font-bold py-3 px-4 rounded-lg">Login</button>
+                    </form>
+                    <form id="register-form" class="hidden">
+                         <div class="mb-4"><label for="register-username" class="block mb-2 text-sm font-medium text-gray-300">Username</label><input type="text" id="register-username" class="w-full p-3 rounded-lg form-input" required></div>
+                         <div class="mb-4"><label for="register-email" class="block mb-2 text-sm font-medium text-gray-300">Email</label><input type="email" id="register-email" class="w-full p-3 rounded-lg form-input" required></div>
+                         <div class="mb-4"><label for="register-password" class="block mb-2 text-sm font-medium text-gray-300">Password</label><input type="password" id="register-password" class="w-full p-3 rounded-lg form-input" required></div>
+                         <div class="mb-6"><label for="register-country" class="block mb-2 text-sm font-medium text-gray-300">Country</label><input type="text" id="register-country" class="w-full p-3 rounded-lg form-input" placeholder="e.g., USA" required></div>
+                        <button type="submit" class="w-full btn-primary text-white font-bold py-3 px-4 rounded-lg">Create Account</button>
+                    </form>
+                    <p id="auth-error" class="text-red-500 text-center mt-4"></p>
+                </div>
+                <div class="w-full max-w-md text-center md:text-left"><h2 class="text-4xl font-bold text-white mb-4">Secure &amp; Seamless</h2><p class="text-gray-300 text-lg">Our advanced system monitors transactions in real-time, using intelligent rules to flag suspicious activity instantly. Keep your finances safe with role-based access and a clear, intuitive interface.</p></div>
+            </div>`;
+        
+        const dashboardStatsHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="stat-card p-6 rounded-xl flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-400">Total Transactions</p>
+                        <p id="total-transactions-stat" class="text-3xl font-bold">0</p>
+                    </div>
+                    <span class="text-blue-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-8 h-8"><path fill-rule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10zm0 5.25a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75z" clip-rule="evenodd" /></svg>
+                    </span>
+                </div>
+                <div class="stat-card p-6 rounded-xl flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-400">Approved Amount</p>
+                        <p id="approved-amount-stat" class="text-3xl font-bold text-lime-400">$0.00</p>
+                    </div>
+                    <span class="text-lime-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-8 h-8"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" /></svg>
+                    </span>
+                </div>
+                <div class="stat-card p-6 rounded-xl flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-400">Flagged Transactions</p>
+                        <p id="flagged-transactions-stat" class="text-3xl font-bold text-red-500">0</p>
+                    </div>
+                    <span class="text-red-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-8 h-8"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+                    </span>
+                </div>
+            </div>`;
+        
+        const adminPanelHTML = `
+            <h2 class="text-2xl font-semibold my-6">Admin Review Panel</h2>
+            <div class="mb-4 flex justify-end"><button id="add-transaction-btn" class="btn-primary text-white font-bold py-2 px-4 rounded-lg">Add Random Transaction</button></div>
+            <div class="card rounded-xl shadow-lg overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-sm text-left text-gray-300">
+                <thead class="text-xs text-gray-100 uppercase table-header"><tr><th scope="col" class="px-6 py-3">Transaction ID</th><th scope="col" class="px-6 py-3">User</th><th scope="col" class="px-6 py-3">Amount</th><th scope="col" class="px-6 py-3">Location</th><th scope="col" class="px-6 py-3">Timestamp</th><th scope="col" class="px-6 py-3">Status</th><th scope="col" class="px-6 py-3">Actions</th></tr></thead>
+                <tbody id="admin-transactions-tbody"></tbody>
+            </table></div></div>`;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('auth-view').innerHTML = authViewHTML;
+            document.getElementById('profile-view').innerHTML = `
+                <div class="max-w-4xl mx-auto card rounded-xl shadow-lg p-8">
+                    <h2 class="text-2xl font-semibold mb-6">Manage Your Profile</h2>
+                    <form id="profile-update-form">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="mb-4"><label for="profile-username" class="block mb-2 text-sm font-medium text-gray-300">Username</label><input type="text" id="profile-username" class="w-full p-3 rounded-lg form-input" required></div>
+                            <div class="mb-4"><label for="profile-full-name" class="block mb-2 text-sm font-medium text-gray-300">Full Name</label><input type="text" id="profile-full-name" class="w-full p-3 rounded-lg form-input" required></div>
+                            <div class="mb-4"><label for="profile-email" class="block mb-2 text-sm font-medium text-gray-300">Email (Cannot be changed)</label><input type="email" id="profile-email" class="w-full p-3 rounded-lg form-input" disabled></div>
+                            <div class="mb-4"><label for="profile-phone" class="block mb-2 text-sm font-medium text-gray-300">Phone Number</label><input type="tel" id="profile-phone" class="w-full p-3 rounded-lg form-input"></div>
+                            <div class="mb-4 md:col-span-2"><label for="profile-country" class="block mb-2 text-sm font-medium text-gray-300">Country</label><input type="text" id="profile-country" class="w-full p-3 rounded-lg form-input" required></div>
+                        </div>
+                        <hr class="border-gray-600 my-8"><h3 class="text-xl font-semibold mb-4">Security</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="mb-4"><label for="profile-current-password" class="block mb-2 text-sm font-medium text-gray-300">Current Password</label><input type="password" id="profile-current-password" class="w-full p-3 rounded-lg form-input" placeholder="Enter to change password"></div>
+                            <div class="mb-4"><label for="profile-new-password" class="block mb-2 text-sm font-medium text-gray-300">New Password</label><input type="password" id="profile-new-password" class="w-full p-3 rounded-lg form-input" placeholder="Enter new password"></div>
+                        </div>
+                        <div class="flex items-center space-x-4 mt-8">
+                            <button type="submit" class="w-full btn-primary text-white font-bold py-3 px-4 rounded-lg">Update Profile</button>
+                            <button type="button" id="back-to-dashboard-btn" class="w-full btn-secondary text-white font-bold py-3 px-4 rounded-lg">Back to Dashboard</button>
+                        </div>
+                    </form><p id="profile-message" class="text-center mt-4"></p>
+                </div>`;
+            document.getElementById('about-view').innerHTML = `
+                <div class="modal-overlay">
+                     <div class="w-full max-w-3xl card rounded-xl shadow-lg p-8 animated-card">
+                        <h2 class="text-2xl font-semibold mb-4">About This Project</h2>
+                        <div class="space-y-4 text-gray-300"><p>This <strong class="text-white">Fraud Detection System</strong> is a front-end demonstration created to showcase a dynamic, role-based user interface for monitoring financial transactions.</p><p>Key features include:</p>
+                            <ul class="list-disc list-inside pl-4 space-y-2"><li><strong>Role-Based Access Control:</strong> Separate dashboard views for regular users and administrators.</li><li><strong>Transaction Simulation:</strong> Users can request transactions, and admins can add random data to the system.</li><li><strong>Rule-Based Detection:</strong> A simple fraud detection rule automatically flags transactions that are high-value or occur in a foreign country.</li><li><strong>Local Data Mocking:</strong> The entire application runs in the browser without a backend, using JavaScript objects to simulate a database.</li></ul>
+                            <p>This project was built using HTML, Tailwind CSS for styling, and pure JavaScript for all logic and interactivity.</p>
+                        </div><div class="mt-8 text-center"><button id="close-about-btn" class="btn-primary text-white font-bold py-2 px-6 rounded-lg">Back</button></div>
+                    </div>
+                </div>`;
+
+
+            // --- Mock Database ---
+            const mockDB = {
+                users: [
+                    { id: 'admin01', username: 'Admin', fullName: 'Administrator', email: 'admin@example.com', password: 'password123', country: 'USA', role: 'admin', phoneNumber: '555-0100' },
+                    { id: 'user01', username: 'Alice', fullName: 'Alice Smith', email: 'alice@example.com', password: 'password123', country: 'USA', role: 'user', phoneNumber: '555-0101' },
+                    { id: 'user02', username: 'Bob', fullName: 'Bob Johnson', email: 'bob@example.com', password: 'password123', country: 'Canada', role: 'user', phoneNumber: '555-0102' }
+                ],
+                transactions: []
+            };
+
+            // --- State Management ---
+            let currentUser = null;
+            let lastUserView = 'dashboard';
+
+            // --- DOM Elements ---
+            const bodyEl = document.body;
+            const userInfo = document.getElementById('user-info');
+            const userActions = document.getElementById('user-actions');
+            const mainFooter = document.getElementById('main-footer');
+            const pageViews = Array.from(document.querySelectorAll('#app main > div:not(#about-view)'));
+            
+            // --- Event Listeners (bound after elements are created) ---
+            let loginForm, registerForm, authError, logoutBtn, aboutBtn, backToDashboardBtn, closeAboutBtn, profileUpdateForm, profileMessage, adminTransactionsTbody, addTransactionBtn, loginTabBtn, registerTabBtn;
+
+            function bindAuthEventListeners() {
+                loginForm = document.getElementById('login-form'); registerForm = document.getElementById('register-form');
+                authError = document.getElementById('auth-error'); loginTabBtn = document.getElementById('login-tab-btn');
+                registerTabBtn = document.getElementById('register-tab-btn');
+                loginForm.addEventListener('submit', handleLogin); registerForm.addEventListener('submit', handleRegister);
+                loginTabBtn.addEventListener('click', () => switchTab('login')); registerTabBtn.addEventListener('click', () => switchTab('register'));
+            }
+
+            function bindCommonEventListeners() {
+                logoutBtn = document.getElementById('logout-btn');
+                aboutBtn = document.getElementById('about-btn'); 
+                backToDashboardBtn = document.getElementById('back-to-dashboard-btn');
+                closeAboutBtn = document.getElementById('close-about-btn'); 
+                profileUpdateForm = document.getElementById('profile-update-form');
+                profileMessage = document.getElementById('profile-message');
+
+                logoutBtn.addEventListener('click', handleLogout);
+                aboutBtn.addEventListener('click', () => document.getElementById('about-view').classList.remove('hidden')); 
+                closeAboutBtn.addEventListener('click', () => document.getElementById('about-view').classList.add('hidden'));
+
+                backToDashboardBtn.addEventListener('click', updateUILayout);
+                profileUpdateForm.addEventListener('submit', handleProfileUpdate);
+            }
+
+            function bindAdminEventListeners() {
+                adminTransactionsTbody = document.getElementById('admin-transactions-tbody'); addTransactionBtn = document.getElementById('add-transaction-btn');
+                if (addTransactionBtn) addTransactionBtn.addEventListener('click', addRandomTransaction);
+                if (adminTransactionsTbody) adminTransactionsTbody.addEventListener('click', handleAdminActions);
+            }
+
+            // --- View Management ---
+            function showView(viewId) {
+                pageViews.forEach(view => { 
+                    view.id === viewId ? view.classList.remove('hidden') : view.classList.add('hidden'); 
+                });
+            }
+            
+            function renderDashboardSummary() {
+                if (!currentUser) return;
+                const relevantTransactions = currentUser.role === 'admin' ? mockDB.transactions : mockDB.transactions.filter(t => t.userId === currentUser.id);
+                const totalTransactions = relevantTransactions.length;
+                const approvedAmount = relevantTransactions.filter(t => t.status === 'approved').reduce((sum, t) => sum + t.amount, 0);
+                const flaggedTransactions = relevantTransactions.filter(t => t.status === 'flagged').length;
+                
+                const totalEl = document.getElementById('total-transactions-stat');
+                const approvedEl = document.getElementById('approved-amount-stat');
+                const flaggedEl = document.getElementById('flagged-transactions-stat');
+
+                if (totalEl) totalEl.textContent = totalTransactions;
+                if (approvedEl) approvedEl.textContent = `$${approvedAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                if (flaggedEl) flaggedEl.textContent = flaggedTransactions;
+            }
+
+            function updateUILayout() {
+                if (currentUser) {
+                    bodyEl.classList.remove('auth-background'); userInfo.textContent = `Welcome, ${currentUser.username} (${currentUser.role})`;
+                    userActions.classList.remove('hidden');
+                    mainFooter.classList.remove('hidden'); // FEATURE: Show footer on dashboards
+                    
+                    if (currentUser.role === 'admin') {
+                        const adminView = document.getElementById('admin-dashboard-view');
+                        adminView.innerHTML = dashboardStatsHTML + adminPanelHTML;
+                        bindAdminEventListeners();
+                        showView('admin-dashboard-view');
+                        loadAdminTransactions();
+                    } else {
+                        showView('user-dashboard-container'); 
+                        populateUserSidebar();
+                        renderUserMainContent(lastUserView);
+                    }
+                    renderDashboardSummary();
+                } else {
+                    bodyEl.classList.add('auth-background'); userInfo.textContent = 'Please log in to continue.';
+                    userActions.classList.add('hidden');
+                    mainFooter.classList.add('hidden'); // FEATURE: Hide footer on login screen
+                    showView('auth-view');
+                }
+            }
+            
+            function populateUserSidebar() {
+                const sidebar = document.getElementById('dashboard-sidebar');
+                sidebar.innerHTML = `<div class="card rounded-xl p-4"><nav id="sidebar-nav" class="flex flex-col space-y-2">
+                    <button data-view="dashboard" class="sidebar-nav-btn flex items-center space-x-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                        <span>Dashboard</span>
+                    </button>
+                    <button data-view="request" class="sidebar-nav-btn flex items-center space-x-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <span>Request Transaction</span>
+                    </button>
+                    <button data-view="history" class="sidebar-nav-btn flex items-center space-x-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <span>Transaction History</span>
+                    </button>
+                    <button data-view="profile" class="sidebar-nav-btn flex items-center space-x-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                        <span>Manage Profile</span>
+                    </button>
+                </nav></div>`;
+                
+                const activeButton = sidebar.querySelector(`.sidebar-nav-btn[data-view="${lastUserView}"]`);
+                if (activeButton) activeButton.classList.add('active');
+
+                document.getElementById('sidebar-nav').addEventListener('click', (e) => {
+                    const button = e.target.closest('.sidebar-nav-btn');
+                    if (button) {
+                        const view = button.dataset.view;
+                        if (view === 'profile') {
+                            showProfileView();
+                        } else {
+                            lastUserView = view;
+                            renderUserMainContent(view);
+                            sidebar.querySelectorAll('.sidebar-nav-btn').forEach(btn => btn.classList.remove('active'));
+                            button.classList.add('active');
+                        }
+                    }
+                });
+            }
+
+            function renderUserMainContent(viewName) {
+                const mainContent = document.getElementById('dashboard-main-content');
+                let contentHTML = '';
+
+                switch (viewName) {
+                    case 'request':
+                        contentHTML = `<div class="card rounded-xl shadow-lg p-6">
+                            <h3 class="text-2xl font-semibold mb-6">Request a New Transaction</h3>
+                            <form id="transaction-request-form" class="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                                <div><label for="request-amount" class="block mb-2 text-sm font-medium text-gray-300">Amount ($)</label><input type="number" id="request-amount" name="amount" class="w-full p-3 rounded-lg form-input" placeholder="e.g., 250.75" step="0.01" required></div>
+                                <div><label for="request-location" class="block mb-2 text-sm font-medium text-gray-300">Location</label><input type="text" id="request-location" name="location" class="w-full p-3 rounded-lg form-input" placeholder="e.g., France" required></div>
+                                <button type="submit" class="w-full btn-primary text-white font-bold py-3 px-4 rounded-lg h-12 md:col-span-2">Submit Request</button>
+                            </form>
+                            <p id="request-success" class="text-green-400 text-center mt-4"></p>
+                        </div>`;
+                        break;
+                    case 'history':
+                        contentHTML = `<div class="card rounded-xl shadow-lg overflow-hidden">
+                            <div class="p-6"><h2 class="text-2xl font-semibold">My Transaction History</h2></div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left text-gray-300">
+                                    <thead class="text-xs text-gray-100 uppercase table-header"><tr>
+                                        <th scope="col" class="px-6 py-3">Transaction ID</th><th scope="col" class="px-6 py-3">Amount</th><th scope="col" class="px-6 py-3">Location</th>
+                                        <th scope="col" class="px-6 py-3">Timestamp</th><th scope="col" class="px-6 py-3">Status</th>
+                                    </tr></thead>
+                                    <tbody id="user-transactions-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>`;
+                        break;
+                    case 'dashboard':
+                    default:
+                        contentHTML = dashboardStatsHTML + `<div class="card p-8 rounded-xl mt-8">
+                            <h2 class="text-3xl font-bold text-white mb-8 text-center">Why Choose Our Platform?</h2>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-8">
+                                <div class="text-center"><div class="flex justify-center mb-4"><svg class="w-10 h-10 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg></div><h3 class="text-xl font-semibold mb-2">Real-time Monitoring</h3><p class="text-gray-400 text-sm">Instantly detect and flag suspicious activities as they happen.</p></div>
+                                <div class="text-center"><div class="flex justify-center mb-4"><svg class="w-10 h-10 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-4.663l.001.109m-8.625-1.066a3.375 3.375 0 116.75 0 3.375 3.375 0 01-6.75 0z" /></svg></div><h3 class="text-xl font-semibold mb-2">Role-Based Access</h3><p class="text-gray-400 text-sm">Secure dashboards tailored for both users and administrators.</p></div>
+                                <div class="text-center"><div class="flex justify-center mb-4"><svg class="w-10 h-10 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg></div><h3 class="text-xl font-semibold mb-2">Intelligent Rules</h3><p class="text-gray-400 text-sm">Our system automatically flags high-risk transactions for review.</p></div>
+                            </div>
+                            <div class="max-w-2xl mx-auto mt-12 text-center"><h2 class="text-2xl font-bold text-white mb-4">About Our System</h2><p class="text-gray-300">This Fraud Detection System is an advanced, front-end demonstration built with modern web technologies to provide a seamless and secure experience, simulating a real-world financial security application without requiring a backend.</p></div>
+                        </div>`;
+                }
+
+                mainContent.innerHTML = contentHTML;
+
+                if (viewName === 'request') document.getElementById('transaction-request-form').addEventListener('submit', handleTransactionRequest);
+                if (viewName === 'history') loadUserTransactions(currentUser.id);
+            }
+
+            // --- Tab Switching Logic ---
+            function switchTab(tab) {
+                authError.textContent = '';
+                if (tab === 'login') {
+                    loginForm.classList.remove('hidden'); registerForm.classList.add('hidden');
+                    loginTabBtn.className = 'px-6 py-2 text-lg font-semibold border-b-2 border-blue-500 text-white';
+                    registerTabBtn.className = 'px-6 py-2 text-lg font-semibold border-b-2 border-transparent text-gray-400';
+                } else {
+                    loginForm.classList.add('hidden'); registerForm.classList.remove('hidden');
+                    registerTabBtn.className = 'px-6 py-2 text-lg font-semibold border-b-2 border-blue-500 text-white';
+                    loginTabBtn.className = 'px-6 py-2 text-lg font-semibold border-b-2 border-transparent text-gray-400';
+                }
+            }
+
+            // --- Event Handlers ---
+            function handleLogin(e) { e.preventDefault(); authError.textContent = ''; const email = document.getElementById('login-email').value; const password = document.getElementById('login-password').value; const role = document.getElementById('login-role').value; const foundUser = mockDB.users.find(user => user.email === email && user.password === password && user.role === role); if (foundUser) { currentUser = foundUser; loginForm.reset(); updateUILayout(); } else { authError.textContent = 'Invalid credentials or role.'; } }
+            function handleRegister(e) { e.preventDefault(); authError.textContent = ''; const username = document.getElementById('register-username').value; const email = document.getElementById('register-email').value; const password = document.getElementById('register-password').value; const country = document.getElementById('register-country').value; if (mockDB.users.some(user => user.email === email)) { authError.textContent = 'An account with this email already exists.'; return; } const newUser = { id: 'user' + Date.now(), username, email, password, country, fullName: username, phoneNumber: '', role: 'user' }; mockDB.users.push(newUser); currentUser = newUser; registerForm.reset(); updateUILayout(); }
+            
+            function handleLogout() { 
+                currentUser = null; 
+                lastUserView = 'dashboard';
+                document.getElementById('admin-dashboard-view').innerHTML = '';
+                document.getElementById('dashboard-main-content').innerHTML = '';
+                updateUILayout(); 
+            }
+
+            function showProfileView() { 
+                document.getElementById('profile-username').value = currentUser.username; 
+                document.getElementById('profile-full-name').value = currentUser.fullName; 
+                document.getElementById('profile-email').value = currentUser.email; 
+                document.getElementById('profile-phone').value = currentUser.phoneNumber; 
+                document.getElementById('profile-country').value = currentUser.country; 
+                profileMessage.textContent = ''; 
+                document.getElementById('profile-current-password').value = ''; 
+                document.getElementById('profile-new-password').value = ''; 
+                showView('profile-view');
+                const sidebar = document.getElementById('dashboard-sidebar');
+                if (sidebar) {
+                    sidebar.querySelectorAll('.sidebar-nav-btn').forEach(btn => btn.classList.remove('active'));
+                    const profileBtn = sidebar.querySelector('.sidebar-nav-btn[data-view="profile"]');
+                    if (profileBtn) profileBtn.classList.add('active');
+                }
+            }
+            function handleProfileUpdate(e) { e.preventDefault(); profileMessage.textContent = ''; const userInDB = mockDB.users.find(u => u.id === currentUser.id); userInDB.username = document.getElementById('profile-username').value; userInDB.fullName = document.getElementById('profile-full-name').value; userInDB.phoneNumber = document.getElementById('profile-phone').value; userInDB.country = document.getElementById('profile-country').value; const currentPassword = document.getElementById('profile-current-password').value; const newPassword = document.getElementById('profile-new-password').value; if (currentPassword || newPassword) { if (userInDB.password !== currentPassword) { profileMessage.className = 'text-red-400 text-center mt-4'; profileMessage.textContent = 'Incorrect current password.'; return; } if (newPassword.length < 6) { profileMessage.className = 'text-red-400 text-center mt-4'; profileMessage.textContent = 'New password must be at least 6 characters long.'; return; } userInDB.password = newPassword; } Object.assign(currentUser, userInDB); userInfo.textContent = `Welcome, ${currentUser.username} (${currentUser.role})`; profileMessage.className = 'text-green-400 text-center mt-4'; profileMessage.textContent = 'Profile updated successfully!'; document.getElementById('profile-current-password').value = ''; document.getElementById('profile-new-password').value = ''; setTimeout(() => profileMessage.textContent = '', 3000); }
+            function handleTransactionRequest(e) { e.preventDefault(); const requestSuccessMessage = document.getElementById('request-success'); requestSuccessMessage.textContent = ''; const amount = parseFloat(document.getElementById('request-amount').value); const location = document.getElementById('request-location').value.trim(); if (isNaN(amount) || amount <= 0 || !location) { alert('Please enter a valid amount and location.'); return; } const newTransaction = { id: 'txn' + Date.now(), userId: currentUser.id, username: currentUser.username, amount: amount, location: location, timestamp: new Date(), status: 'pending' }; if (newTransaction.amount > 1000 || newTransaction.location.toLowerCase() !== currentUser.country.toLowerCase()) { newTransaction.status = 'flagged'; } mockDB.transactions.unshift(newTransaction); e.target.reset(); requestSuccessMessage.textContent = 'Transaction request submitted!'; renderDashboardSummary(); setTimeout(() => { if (requestSuccessMessage) requestSuccessMessage.textContent = ''}, 3000); }
+            function addRandomTransaction() { const randomUser = mockDB.users.find(u => u.role === 'user') || mockDB.users[0]; const newTransaction = { id: 'txn' + Date.now(), userId: randomUser.id, username: randomUser.username, amount: parseFloat(faker.finance.amount(5, 5000, 2)), location: faker.address.country(), timestamp: new Date(), status: 'pending' }; if (newTransaction.amount > 1000 || newTransaction.location !== randomUser.country) { newTransaction.status = 'flagged'; } mockDB.transactions.unshift(newTransaction); loadAdminTransactions(); renderDashboardSummary(); }
+            function handleAdminActions(e) { const target = e.target; const transactionId = target.dataset.id; if (!transactionId) return; const transaction = mockDB.transactions.find(t => t.id === transactionId); if (!transaction) return; if (target.classList.contains('approve-btn')) { transaction.status = 'approved'; } else if (target.classList.contains('flag-btn')) { transaction.status = 'flagged'; } loadAdminTransactions(); renderDashboardSummary(); }
+
+            // --- Data Loading & Rendering ---
+            function renderUserTransactionRow(tbody, transaction) { const statusClass = { 'pending': 'status-pending', 'approved': 'status-approved', 'flagged': 'status-flagged'}[transaction.status] || ''; const row = document.createElement('tr'); row.className = 'border-b border-gray-700 hover:bg-gray-800'; row.innerHTML = `<td class="px-6 py-4">${transaction.id.substring(0, 10)}...</td><td class="px-6 py-4">$${transaction.amount.toFixed(2)}</td><td class="px-6 py-4">${transaction.location}</td><td class="px-6 py-4">${transaction.timestamp.toLocaleString()}</td><td class="px-6 py-4 font-semibold ${statusClass}">${transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}</td>`; tbody.appendChild(row); }
+            function renderAdminTransactionRow(tbody, transaction) { const statusClass = { 'pending': 'status-pending', 'approved': 'status-approved', 'flagged': 'status-flagged'}[transaction.status] || ''; const row = document.createElement('tr'); row.className = 'border-b border-gray-700 hover:bg-gray-800'; const actionsCell = `<td class="px-6 py-4"><div class="flex space-x-2"><button class="approve-btn btn-success text-white text-xs font-bold py-1 px-2 rounded" data-id="${transaction.id}">Approve</button><button class="flag-btn btn-danger text-white text-xs font-bold py-1 px-2 rounded" data-id="${transaction.id}">Flag</button></div></td>`; row.innerHTML = `<td class="px-6 py-4">${transaction.id.substring(0, 10)}...</td><td class="px-6 py-4">${transaction.username}</td><td class="px-6 py-4">$${transaction.amount.toFixed(2)}</td><td class="px-6 py-4">${transaction.location}</td><td class="px-6 py-4">${transaction.timestamp.toLocaleString()}</td><td class="px-6 py-4 font-semibold ${statusClass}">${transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}</td>${actionsCell}`; tbody.appendChild(row); }
+            function loadUserTransactions(userId) { const userTransactionsTbody = document.getElementById('user-transactions-tbody'); if (!userTransactionsTbody) return; userTransactionsTbody.innerHTML = ''; const transactions = mockDB.transactions.filter(t => t.userId === userId); if (transactions.length === 0) { userTransactionsTbody.innerHTML = '<tr><td colspan="5" class="text-center p-4">No transactions.</td></tr>'; return; } transactions.forEach(t => renderUserTransactionRow(userTransactionsTbody, t)); }
+            function loadAdminTransactions() { adminTransactionsTbody.innerHTML = ''; const transactions = mockDB.transactions; if (transactions.length === 0) { adminTransactionsTbody.innerHTML = '<tr><td colspan="7" class="text-center p-4">No transactions found.</td></tr>'; return; } transactions.forEach(t => renderAdminTransactionRow(adminTransactionsTbody, t, true)); }
+
+            // --- Initial Setup ---
+            function initialize() {
+                mockDB.transactions.push({ id: 'txn' + (Date.now() - 10000), userId: 'user01', username: 'Alice', amount: 125.50, location: 'USA', timestamp: new Date(Date.now() - 10000), status: 'approved' });
+                mockDB.transactions.push({ id: 'txn' + (Date.now() - 5000), userId: 'user02', username: 'Bob', amount: 2500.00, location: 'USA', timestamp: new Date(Date.now() - 5000), status: 'flagged' });
+                updateUILayout();
+                bindAuthEventListeners();
+                bindCommonEventListeners();
+            }
+
+            initialize();
+        });
+    </script>
+</body>
+</html>
